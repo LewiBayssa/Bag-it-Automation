@@ -2,7 +2,7 @@
 import React from "react";
 import { Bag as BagType, Item } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import * as Icons from "lucide-react";
+import * as LucideIcons from "lucide-react";
 
 interface BagProps {
   bag: BagType;
@@ -58,7 +58,7 @@ interface BagItemProps {
 }
 
 function BagItem({ item }: BagItemProps) {
-  const IconComponent = (Icons as any)[item.icon] || Icons.ShoppingBag;
+  const IconComponent = (LucideIcons as any)[item.icon] || LucideIcons.ShoppingBag;
   
   // Apply different background colors based on item category
   let bgColor = "bg-gray-100";

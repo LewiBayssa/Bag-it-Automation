@@ -7,6 +7,7 @@ import { Bag, BagSystem, Item } from "@/types";
 import { ITEMS } from "@/data/items";
 import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/components/ui/use-toast";
+import * as LucideIcons from "lucide-react";
 
 interface BaggingSystemProps {
   onReset: () => void;
@@ -99,6 +100,13 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       placeNextItem();
     }
   }, []);
+  
+  // Helper function to get the appropriate icon component
+  const getIconComponent = (iconName: string) => {
+    // Default to ShoppingBag if the icon doesn't exist
+    const IconComponent = (LucideIcons as any)[iconName] || LucideIcons.ShoppingBag;
+    return <IconComponent size={32} />;
+  };
 
   return (
     <div className="space-y-6">
@@ -125,11 +133,7 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
               <h3 className="font-medium mb-2">Next Item:</h3>
               <div className="flex items-center">
                 <div className="bg-white p-2 rounded-md mr-4">
-                  {React.createElement(
-                    (require('lucide-react') as any)[ITEMS[system.currentItemIndex].icon] || 
-                    (require('lucide-react') as any).ShoppingBag, 
-                    { size: 32 }
-                  )}
+                  {getIconComponent(ITEMS[system.currentItemIndex].icon)}
                 </div>
                 <div>
                   <p className="font-medium">{ITEMS[system.currentItemIndex].name}</p>

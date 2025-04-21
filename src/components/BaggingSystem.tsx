@@ -55,24 +55,32 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
   
   // Reference to the scroll area container
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
+  // Reference to the last bag
+  const lastBagRef = useRef<HTMLDivElement | null>(null);
+
+  // Helper function to extract canonical base name for item (ignores any "(n)" at end)
+  const getBaseName = (name: string) => name.replace(/\s*\(\d+\)$/, "").trim();
+
   const { toast } = useToast();
   // Get current item, ensuring we don't go out of bounds
   const currentItem = system.currentItemIndex < system.totalItems ? itemsToProcess[system.currentItemIndex] : null;
 
   // Determine which bag to place the item in
   const chooseOptimalBag = (item: Item, bags: Bag[]): number => {
-    // This is a simplified algorithm for demonstration
-    // A real implementation would be more sophisticated
-    
-    // Try to group similar categories together
+    // Only allow max 2 of the "base" item in a bag
+    const targetBaseName = getBaseName(item.name);
+
     for (let i = 0; i < bags.length; i++) {
       const bag = bags[i];
       // Skip bags that are already full
-      if (bag.items.length >= ITEMS_PER_BAG) {
-        continue;
-      }
-      
+      if (bag.items.length >= ITEMS_PER_BAG) continue;
+
+      // Check for max 2 of the same item (by base name)
+      const sameBaseCount = bag.items.filter(
+        i => getBaseName(i.name) === targetBaseName
+      ).length;
+      if (sameBaseCount >= 2) continue;
+
       // Don't put chemicals with food
       if (item.category.includes("chemical")) {
         // Check if the bag already has chemicals or is empty
@@ -109,16 +117,12 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     return -1;
   };
 
-  // Auto-scroll to the bottom when new bags are added
+  // Smooth auto-scroll to last bag when bags/content change
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      setTimeout(() => {
-        if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        }
-      }, 100);
+    if (lastBagRef.current) {
+      lastBagRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
-  }, [system.bags.length]);
+  }, [system.bags.length, system.bags[system.bags.length - 1]?.items.length]);
 
   const placeNextItem = () => {
     if (system.currentItemIndex >= system.totalItems) {
@@ -135,7 +139,7 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     let newBags = [...system.bags];
 
     if (bagIndex === -1) {
-      // All bags are full or no suitable bag found, add a new bag!
+      // All bags are full or hit max for this item, add a new bag!
       const newBagNumber = system.bags.length + 1;
       const newBag = {
         id: uuidv4(),
@@ -219,8 +223,13 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
           <div ref={scrollContainerRef} className="overflow-auto max-h-[350px] pr-2">
             <ScrollArea className="w-full h-full">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 min-w-[600px] pb-4">
-                {system.bags.map((bag) => (
-                  <BagComponent key={bag.id} bag={bag} />
+                {system.bags.map((bag, idx) => (
+                  <div
+                    key={bag.id}
+                    ref={idx === system.bags.length - 1 ? lastBagRef : null}
+                  >
+                    <BagComponent bag={bag} />
+                  </div>
                 ))}
               </div>
             </ScrollArea>

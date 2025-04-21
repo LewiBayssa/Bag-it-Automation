@@ -8,6 +8,7 @@ import { ITEMS } from "@/data/items";
 import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/components/ui/use-toast";
 import * as LucideIcons from "lucide-react";
+import { ScanBarcode, Upload } from "lucide-react";
 
 interface BaggingSystemProps {
   onReset: () => void;
@@ -155,15 +156,47 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
           <Button variant="outline" onClick={onReset}>
             Reset
           </Button>
-          <Button 
-            onClick={placeNextItem} 
-            className="bg-kroger-blue hover:bg-blue-800"
-            disabled={system.currentItemIndex >= system.totalItems}
-          >
-            {system.currentItemIndex >= system.totalItems 
-              ? "All Items Bagged" 
-              : "Scan Next Item"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                  const target = e.target as HTMLInputElement;
+                  if (target.files && target.files.length > 0) {
+                    toast({
+                      title: "New image uploaded",
+                      description: `Image added: ${target.files[0].name}`,
+                    });
+                    placeNextItem();
+                  }
+                };
+                input.click();
+              }}
+              variant="outline"
+              className="border-kroger-blue text-kroger-blue hover:bg-kroger-light"
+            >
+              <div className="flex items-center gap-2">
+                <Upload size={16} />
+                <span>Upload Image</span>
+              </div>
+            </Button>
+            <Button 
+              onClick={placeNextItem} 
+              className="bg-kroger-blue hover:bg-blue-800"
+              disabled={system.currentItemIndex >= system.totalItems}
+            >
+              {system.currentItemIndex >= system.totalItems 
+                ? "All Items Bagged" 
+                : (
+                  <div className="flex items-center gap-2">
+                    <ScanBarcode size={16} />
+                    <span>Scan Next Item (Fast)</span>
+                  </div>
+                )}
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </div>

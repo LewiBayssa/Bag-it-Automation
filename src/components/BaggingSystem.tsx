@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Bag as BagComponent } from "./Bag";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +53,9 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     totalItems: TOTAL_ITEMS
   });
   
+  // Reference to the scroll area container
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
   const { toast } = useToast();
   // Get current item, ensuring we don't go out of bounds
   const currentItem = system.currentItemIndex < system.totalItems ? itemsToProcess[system.currentItemIndex] : null;
@@ -105,6 +108,17 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     // All bags are full or no suitable bag found - add new bag
     return -1;
   };
+
+  // Auto-scroll to the bottom when new bags are added
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      setTimeout(() => {
+        if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+      }, 100);
+    }
+  }, [system.bags.length]);
 
   const placeNextItem = () => {
     if (system.currentItemIndex >= system.totalItems) {
@@ -202,13 +216,15 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
             </div>
           )}
           
-          <ScrollArea className="w-full" style={{ maxHeight: "350px" }}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 min-w-[600px]">
-              {system.bags.map((bag) => (
-                <BagComponent key={bag.id} bag={bag} />
-              ))}
-            </div>
-          </ScrollArea>
+          <div ref={scrollContainerRef} className="overflow-auto max-h-[350px] pr-2">
+            <ScrollArea className="w-full h-full">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 min-w-[600px] pb-4">
+                {system.bags.map((bag) => (
+                  <BagComponent key={bag.id} bag={bag} />
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
         </CardContent>
         <CardFooter className="flex justify-between">
           <Button variant="outline" onClick={onReset}>

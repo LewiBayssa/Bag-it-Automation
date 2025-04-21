@@ -9,10 +9,14 @@ import { v4 as uuidv4 } from "uuid";
 import { useToast } from "@/components/ui/use-toast";
 import * as LucideIcons from "lucide-react";
 import { ScanBarcode, Upload } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BaggingSystemProps {
   onReset: () => void;
 }
+
+// Set the maximum items per bag
+const ITEMS_PER_BAG = 5;
 
 export function BaggingSystem({ onReset }: BaggingSystemProps) {
   const [system, setSystem] = useState<BagSystem>({
@@ -40,29 +44,47 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       // Don't put chemicals with food
       if (item.category.includes("chemical")) {
         // Check if the bag already has chemicals or is empty
-        if (bag.items.some(i => i.category.includes("chemical")) || bag.items.length === 0) {
+        if (
+          (bag.items.some(i => i.category.includes("chemical")) || bag.items.length === 0) &&
+          bag.items.length < ITEMS_PER_BAG
+        ) {
           return i;
         }
       }
       
       // Group cold items together
       if (item.category.includes("cold")) {
-        if (bag.items.some(i => i.category.includes("cold"))) {
+        if (
+          bag.items.some(i => i.category.includes("cold")) &&
+          bag.items.length < ITEMS_PER_BAG
+        ) {
           return i;
         }
       }
       
-      // Group produce together
+      // Group produce or meat together
       if (item.category.includes("produce") || item.category.includes("meat")) {
-        if (bag.items.some(i => i.category.includes("produce") || i.category.includes("meat"))) {
+        if (
+          bag.items.some(i => i.category.includes("produce") || i.category.includes("meat")) &&
+          bag.items.length < ITEMS_PER_BAG
+        ) {
           return i;
         }
       }
     }
     
-    // If no specific rule applies, find the bag with the least items
-    return bags.reduce((minIdx, bag, idx, arr) => 
-      bag.items.length < arr[minIdx].items.length ? idx : minIdx, 0);
+    // If no specific rule applies, find the bag with least items and room
+    let idx = bags.reduce(
+      (minIdx, bag, idx, arr) =>
+        bag.items.length < arr[minIdx].items.length && bag.items.length < ITEMS_PER_BAG ? idx : minIdx,
+      0
+    );
+    // If found bag has space, use it
+    if (bags[idx].items.length < ITEMS_PER_BAG) {
+      return idx;
+    }
+    // All bags are full - will add new bag
+    return -1;
   };
 
   const placeNextItem = () => {
@@ -74,24 +96,37 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       return;
     }
 
-    const item = {...ITEMS[system.currentItemIndex], id: uuidv4()};
-    const bagIndex = chooseOptimalBag(item, system.bags);
-    
-    // Create a new copy of the system to mutate
-    const newSystem = {...system};
-    newSystem.bags = [...system.bags];
-    newSystem.bags[bagIndex] = {
-      ...system.bags[bagIndex],
-      items: [...system.bags[bagIndex].items, item]
+    const item = { ...ITEMS[system.currentItemIndex], id: uuidv4() };
+    let bagIndex = chooseOptimalBag(item, system.bags);
+    let newBags = [...system.bags];
+
+    if (bagIndex === -1) {
+      // All bags are full, add a new bag!
+      const newBagNumber = system.bags.length + 1;
+      const newBag = {
+        id: uuidv4(),
+        name: `Bag ${newBagNumber}`,
+        items: [],
+      };
+      newBags.push(newBag);
+      bagIndex = newBags.length - 1;
+    }
+
+    newBags[bagIndex] = {
+      ...newBags[bagIndex],
+      items: [...newBags[bagIndex].items, item]
     };
-    newSystem.currentItemIndex += 1;
-    
-    setSystem(newSystem);
-    
+
+    setSystem({
+      ...system,
+      bags: newBags,
+      currentItemIndex: system.currentItemIndex + 1,
+    });
+
     // Show suggestion toast
     toast({
       title: `Bagged: ${item.name}`,
-      description: `Placed in ${system.bags[bagIndex].name} at ${item.position} position`,
+      description: `Placed in ${newBags[bagIndex].name} at ${item.position} position`,
     });
   };
 
@@ -100,7 +135,8 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     if (system.currentItemIndex === 0) {
       placeNextItem();
     }
-  }, []);
+    // eslint-disable-next-line
+  }, []); // Only run on mount
   
   // Helper function to get the appropriate icon component
   const getIconComponent = (iconName: string) => {
@@ -146,11 +182,13 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
             </div>
           )}
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {system.bags.map((bag) => (
-              <BagComponent key={bag.id} bag={bag} />
-            ))}
-          </div>
+          <ScrollArea className="w-full" style={{ maxHeight: "350px" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 min-w-[600px]">
+              {system.bags.map((bag) => (
+                <BagComponent key={bag.id} bag={bag} />
+              ))}
+            </div>
+          </ScrollArea>
         </CardContent>
         <CardFooter className="flex justify-between">
           <Button variant="outline" onClick={onReset}>

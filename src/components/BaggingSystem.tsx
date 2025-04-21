@@ -17,6 +17,8 @@ interface BaggingSystemProps {
 
 // Set the maximum items per bag
 const ITEMS_PER_BAG = 5;
+// Set the total number of items to process
+const TOTAL_ITEMS = 20;
 
 export function BaggingSystem({ onReset }: BaggingSystemProps) {
   const [system, setSystem] = useState<BagSystem>({
@@ -26,11 +28,12 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       { id: uuidv4(), name: "Bag 3", items: [] }
     ],
     currentItemIndex: 0,
-    totalItems: ITEMS.length
+    totalItems: Math.min(TOTAL_ITEMS, ITEMS.length) // Use the smaller of TOTAL_ITEMS or actual ITEMS length
   });
   
   const { toast } = useToast();
-  const currentItem = ITEMS[system.currentItemIndex];
+  // Get current item, ensuring we don't go out of bounds
+  const currentItem = system.currentItemIndex < system.totalItems ? ITEMS[system.currentItemIndex] : null;
 
   // Determine which bag to place the item in
   const chooseOptimalBag = (item: Item, bags: Bag[]): number => {
@@ -40,13 +43,16 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     // Try to group similar categories together
     for (let i = 0; i < bags.length; i++) {
       const bag = bags[i];
+      // Skip bags that are already full
+      if (bag.items.length >= ITEMS_PER_BAG) {
+        continue;
+      }
       
       // Don't put chemicals with food
       if (item.category.includes("chemical")) {
         // Check if the bag already has chemicals or is empty
         if (
-          (bag.items.some(i => i.category.includes("chemical")) || bag.items.length === 0) &&
-          bag.items.length < ITEMS_PER_BAG
+          (bag.items.some(i => i.category.includes("chemical")) || bag.items.length === 0)
         ) {
           return i;
         }
@@ -54,36 +60,27 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       
       // Group cold items together
       if (item.category.includes("cold")) {
-        if (
-          bag.items.some(i => i.category.includes("cold")) &&
-          bag.items.length < ITEMS_PER_BAG
-        ) {
+        if (bag.items.some(i => i.category.includes("cold"))) {
           return i;
         }
       }
       
       // Group produce or meat together
       if (item.category.includes("produce") || item.category.includes("meat")) {
-        if (
-          bag.items.some(i => i.category.includes("produce") || i.category.includes("meat")) &&
-          bag.items.length < ITEMS_PER_BAG
-        ) {
+        if (bag.items.some(i => i.category.includes("produce") || i.category.includes("meat"))) {
           return i;
         }
       }
     }
     
-    // If no specific rule applies, find the bag with least items and room
-    let idx = bags.reduce(
-      (minIdx, bag, idx, arr) =>
-        bag.items.length < arr[minIdx].items.length && bag.items.length < ITEMS_PER_BAG ? idx : minIdx,
-      0
-    );
-    // If found bag has space, use it
-    if (bags[idx].items.length < ITEMS_PER_BAG) {
-      return idx;
+    // If no specific rule applies, find the first bag with room
+    for (let i = 0; i < bags.length; i++) {
+      if (bags[i].items.length < ITEMS_PER_BAG) {
+        return i;
+      }
     }
-    // All bags are full - will add new bag
+    
+    // All bags are full or no suitable bag found - add new bag
     return -1;
   };
 
@@ -101,7 +98,7 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
     let newBags = [...system.bags];
 
     if (bagIndex === -1) {
-      // All bags are full, add a new bag!
+      // All bags are full or no suitable bag found, add a new bag!
       const newBagNumber = system.bags.length + 1;
       const newBag = {
         id: uuidv4(),
@@ -165,17 +162,17 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
             </div>
           </div>
           
-          {system.currentItemIndex < system.totalItems && (
+          {currentItem && (
             <div className="p-4 border rounded-md bg-kroger-light mb-4">
               <h3 className="font-medium mb-2">Next Item:</h3>
               <div className="flex items-center">
                 <div className="bg-white p-2 rounded-md mr-4">
-                  {getIconComponent(ITEMS[system.currentItemIndex].icon)}
+                  {getIconComponent(currentItem.icon)}
                 </div>
                 <div>
-                  <p className="font-medium">{ITEMS[system.currentItemIndex].name}</p>
+                  <p className="font-medium">{currentItem.name}</p>
                   <p className="text-sm text-gray-500">
-                    Categories: {ITEMS[system.currentItemIndex].category.join(", ")}
+                    Categories: {currentItem.category.join(", ")}
                   </p>
                 </div>
               </div>

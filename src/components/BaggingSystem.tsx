@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Bag as BagComponent } from "./Bag";
 import { Button } from "@/components/ui/button";
@@ -21,6 +20,29 @@ const ITEMS_PER_BAG = 5;
 const TOTAL_ITEMS = 20;
 
 export function BaggingSystem({ onReset }: BaggingSystemProps) {
+  // Create a function to generate repeated items if needed
+  const generateItemsToProcess = () => {
+    // If we have enough items, just take the first TOTAL_ITEMS
+    if (ITEMS.length >= TOTAL_ITEMS) {
+      return ITEMS.slice(0, TOTAL_ITEMS);
+    }
+    
+    // Otherwise, repeat items to reach TOTAL_ITEMS
+    const repeatedItems = [...ITEMS];
+    while (repeatedItems.length < TOTAL_ITEMS) {
+      // Add items with modified names to reach TOTAL_ITEMS
+      const itemsToAdd = ITEMS.slice(0, Math.min(ITEMS.length, TOTAL_ITEMS - repeatedItems.length));
+      repeatedItems.push(...itemsToAdd.map(item => ({
+        ...item,
+        name: `${item.name} (${Math.floor(repeatedItems.length / ITEMS.length) + 1})`,
+      })));
+    }
+    return repeatedItems.slice(0, TOTAL_ITEMS);
+  };
+  
+  // Get the items we'll be processing
+  const itemsToProcess = generateItemsToProcess();
+  
   const [system, setSystem] = useState<BagSystem>({
     bags: [
       { id: uuidv4(), name: "Bag 1", items: [] },
@@ -28,12 +50,12 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       { id: uuidv4(), name: "Bag 3", items: [] }
     ],
     currentItemIndex: 0,
-    totalItems: Math.min(TOTAL_ITEMS, ITEMS.length) // Use the smaller of TOTAL_ITEMS or actual ITEMS length
+    totalItems: TOTAL_ITEMS
   });
   
   const { toast } = useToast();
   // Get current item, ensuring we don't go out of bounds
-  const currentItem = system.currentItemIndex < system.totalItems ? ITEMS[system.currentItemIndex] : null;
+  const currentItem = system.currentItemIndex < system.totalItems ? itemsToProcess[system.currentItemIndex] : null;
 
   // Determine which bag to place the item in
   const chooseOptimalBag = (item: Item, bags: Bag[]): number => {
@@ -93,7 +115,8 @@ export function BaggingSystem({ onReset }: BaggingSystemProps) {
       return;
     }
 
-    const item = { ...ITEMS[system.currentItemIndex], id: uuidv4() };
+    const itemToBag = itemsToProcess[system.currentItemIndex];
+    const item = { ...itemToBag, id: uuidv4() };
     let bagIndex = chooseOptimalBag(item, system.bags);
     let newBags = [...system.bags];
 
